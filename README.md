@@ -208,7 +208,7 @@ Copy `YOUR_SHEET_ID_HERE` into `SHEET_ID` in `config.py`.
 # For testing with Gymnasium:
 CYBERSKYLINE_URL = "https://cyberskyline.com/world/abc123gymnasium456"
 
-# For actual competition (switch to this on Friday):
+# For actual competition (switch before competition starts):
 CYBERSKYLINE_URL = "https://cyberskyline.com/world/def789teamgame012"
 ```
 
@@ -256,7 +256,7 @@ If you intentionally want to regenerate a sheet that has work in it:
 
 **IMPORTANT**: Run the updater **immediately** when the competition opens, before anyone starts working!
 
-When the NCL Team Game starts on Friday:
+When the NCL Team Game starts:
 
 1. **Before the game opens**: Make sure you're logged into cyberskyline.com in Firefox
 2. **When challenges go live**: Run the updater immediately:
