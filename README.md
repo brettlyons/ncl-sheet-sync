@@ -83,54 +83,106 @@ Each script automatically:
 
 ## Requirements
 
-- Firefox logged into cyberskyline.com
+**Essential:**
+- Logged into cyberskyline.com in a supported browser (Firefox, Chrome, Chromium, Brave, or Edge)
 - Google Sheets OAuth2 credentials
-- NixOS (or Nix package manager)
+- Python 3.8+ with required packages
+
+**Supported Platforms:**
+- Linux (tested on NixOS and Ubuntu)
+- Windows 10/11
+- macOS
 
 ## Setup
 
-### Environment Setup
+### Quick Start (Automated Setup)
 
-Use the provided shell.nix for a reproducible development environment:
+The fastest way to get started:
+
+```bash
+# 1. Install Python dependencies (see "Installing Dependencies" below)
+
+# 2. Run automated setup
+python utils/auto_setup.py
+
+# 3. Set up Google Sheets authentication
+python utils/setup_google_auth.py
+
+# 4. Edit config.py with your Sheet ID and World URL
+
+# 5. Test it!
+python update_sheet.py osint
+```
+
+**That's it!** The automated setup will detect your browser and extract cookies automatically.
+
+---
+
+### Installing Dependencies
+
+#### Option A: Using Nix (Linux/macOS - Recommended for NixOS users)
+
+If you have Nix installed, you get a reproducible environment with all dependencies:
 
 ```bash
 cd ~/ncl-sheet-sync
-nix-shell
+nix-shell  # Drops you into a shell with everything installed
 ```
 
-This provides Python 3.12 with all required packages:
-- gspread (Google Sheets API)
-- google-auth-oauthlib (OAuth2 authentication)
-- requests (HTTP client)
-- sqlite (for cookie extraction)
+Or run scripts directly (they have nix-shell shebangs):
+```bash
+./update_sheet.py osint
+```
 
-Alternatively, you can run individual scripts directly with their nix-shell shebang (they have nix-shell directives in their headers).
+**Note:** Nix is optional but provides isolated, reproducible environments. To install Nix, visit https://nixos.org/download.html
 
-### First-Time Setup
+#### Option B: Using pip (Linux/Windows/macOS)
 
-#### 1. Create Configuration File
+Install dependencies with pip:
 
 ```bash
-cd ~/ncl-sheet-sync
-cp config.example.py config.py
+pip install gspread google-auth-oauthlib requests pycryptodome
 ```
 
-Edit `config.py` with your actual values:
-- `SHEET_ID`: Your Google Sheet ID (from the URL)
-- `CYBERSKYLINE_URL`: Your NCL Team Game world URL
-- `COOKIE_FILE`: Path to your cyberskyline cookies file
-- `TOKEN_PATH`: Path to your Google OAuth token file
+**Windows users:** For Chrome cookie decryption, also install:
+```bash
+pip install pywin32
+```
+
+#### Option C: Using system packages (Linux)
+
+On Debian/Ubuntu:
+```bash
+sudo apt install python3-gspread python3-requests python3-crypto
+```
+
+On Fedora/RHEL:
+```bash
+sudo dnf install python3-gspread python3-requests python3-pycrypto
+```
+
+---
+
+### Detailed Setup Steps
+
+#### 1. Extract Cookies & Create Config
+
+**Option A: Automated (Recommended)**
+
+```bash
+python utils/auto_setup.py
+```
+
+This will:
+- Auto-detect your browser (Firefox, Chrome, Chromium, Brave, Edge)
+- Extract cyberskyline.com cookies
+- Create or update `config.py` with the cookie file path
+
+**Option B: Manual (if automated setup fails)**
+
+See manual instructions at the end of this section.
 
 #### 2. Google Sheets Authentication
-
-**Option A: If you already have token.pickle**
-
-If you've already authenticated (like the existing setup), just update the path in `config.py`:
-```python
-TOKEN_PATH = "~/token.pickle"
-```
-
-**Option B: First-time Google OAuth setup**
 
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project (or select existing)
@@ -142,77 +194,41 @@ TOKEN_PATH = "~/token.pickle"
    - Go to "APIs & Services" > "Credentials"
    - Click "Create Credentials" > "OAuth client ID"
    - Application type: "Desktop app"
-   - Download the credentials JSON file
-5. Configure OAuth consent screen:
-   - Add yourself as a test user
-   - Scopes needed: Google Sheets API (read/write)
+   - Download the credentials JSON file as `credentials.json`
+5. Place `credentials.json` in the project directory
 6. Run authentication script:
    ```bash
-   cd ~/ncl-sheet-sync
-   ./utils/setup_google_auth.py
+   python utils/setup_google_auth.py
    ```
    This will open a browser for OAuth authentication and create `token.pickle`.
-7. Update `TOKEN_PATH` in `config.py` to point to your token.pickle
 
-#### 3. Cyberskyline Cookie Extraction
+#### 3. Configure Sheet and World URLs
 
-Extract session cookies from Firefox while logged into cyberskyline.com:
+Edit `config.py` and update:
 
-```bash
-# Find your Firefox profile
-ls ~/.mozilla/firefox/*.default*/cookies.sqlite
+```python
+# Your Google Sheet ID (from the URL)
+SHEET_ID = "your-sheet-id-here"
 
-# Extract cookies (replace with your profile path)
-sqlite3 ~/.mozilla/firefox/YOUR_PROFILE.default/cookies.sqlite \
-  "SELECT name, value FROM moz_cookies WHERE host LIKE '%cyberskyline.com%'" \
-  | awk -F'|' '{printf "%s=%s; ", $1, $2}' > ~/cyberskyline_cookies.txt
+# Your NCL World URL
+CYBERSKYLINE_URL = "https://cyberskyline.com/world/your-world-id"
+
+# Token path (if setup_google_auth.py put it somewhere else)
+TOKEN_PATH = "/path/to/token.pickle"
 ```
 
-Required cookies:
-- `__stripe_mid`
-- `__stripe_sid`
-- `sky.sid`
-
-Format in `cyberskyline_cookies.txt`:
-```
-__stripe_mid=...; __stripe_sid=...; sky.sid=...
-```
-
-Update `COOKIE_FILE` in `config.py` to point to this file.
-
-#### 4. Get Your Sheet ID
-
+**Finding your Sheet ID:**
 From your Google Sheet URL:
 ```
 https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID_HERE/edit
 ```
 
-Copy `YOUR_SHEET_ID_HERE` into `SHEET_ID` in `config.py`.
-
-#### 5. Get Your Cyberskyline World URL
-
-**Finding World IDs:**
-
+**Finding your World URL:**
 1. Log into https://cyberskyline.com
-2. Navigate to the world you want:
-   - **Gymnasium**: Click "Training" → "NCL Gymnasium" or similar
-   - **Team Game**: Click on your active team game when it's available
-3. Look at the URL in your browser:
-   ```
-   https://cyberskyline.com/world/YOUR_WORLD_ID_HERE
-   ```
-4. Copy the full URL into `CYBERSKYLINE_URL` in `config.py`
+2. Navigate to your NCL Gymnasium or Team Game
+3. Copy the URL from your browser (format: `https://cyberskyline.com/world/...`)
 
-**Example format:**
-```python
-# For testing with Gymnasium:
-CYBERSKYLINE_URL = "https://cyberskyline.com/world/abc123gymnasium456"
-
-# For actual competition (switch before competition starts):
-CYBERSKYLINE_URL = "https://cyberskyline.com/world/def789teamgame012"
-```
-
-**Note:** World IDs are unique to each competition/gym instance. The Gymnasium world ID stays the same, but Team Game world IDs change each season.
+**Note:** Use Gymnasium for testing. Switch to Team Game URL when competition starts.
 
 ### Verifying Setup
 
@@ -228,11 +244,58 @@ If you see challenge data, authentication is working!
 
 Cyberskyline session cookies expire periodically. If you get authentication errors:
 
-1. Make sure you're logged into cyberskyline.com in Firefox
-2. Re-extract cookies using the sqlite3 command from step 3
-3. Replace the contents of your cookies file
+1. Make sure you're logged into cyberskyline.com in your browser
+2. Re-run `python utils/auto_setup.py` to refresh cookies
+3. The script will automatically update your config
 
 **Tip**: Session cookies typically last several hours to days. You may need to refresh them before each competition day.
+
+---
+
+### Manual Cookie Extraction (Troubleshooting)
+
+If `auto_setup.py` doesn't work for your setup, you can extract cookies manually:
+
+#### Firefox (Linux/macOS/Windows)
+
+```bash
+# Linux/macOS
+sqlite3 ~/.mozilla/firefox/*.default*/cookies.sqlite \
+  "SELECT name, value FROM moz_cookies WHERE host LIKE '%cyberskyline.com%'" \
+  | awk -F'|' '{printf "%s=%s; ", $1, $2}' > ~/cyberskyline_cookies.txt
+
+# Windows (PowerShell)
+# Find your profile first:
+dir $env:APPDATA\Mozilla\Firefox\Profiles\
+# Then extract (replace YOUR_PROFILE):
+sqlite3 "$env:APPDATA\Mozilla\Firefox\Profiles\YOUR_PROFILE.default\cookies.sqlite" "SELECT name, value FROM moz_cookies WHERE host LIKE '%cyberskyline.com%'" > cookies.txt
+```
+
+Or use the included helper script (Linux only):
+```bash
+python utils/extract_firefox_cookies.py
+```
+
+#### Chrome/Edge (Windows)
+
+Chrome cookies are encrypted on Windows. You'll need a tool like:
+- [EditThisCookie](https://chrome.google.com/webstore/detail/editthiscookie) browser extension
+- Export cookies for `cyberskyline.com` in Netscape format
+- Convert to format: `name1=value1; name2=value2; ...`
+
+#### Browser Extensions (All Platforms)
+
+For any browser, you can use extensions like:
+- **EditThisCookie** (Chrome/Edge)
+- **Cookie-Editor** (Firefox/Chrome)
+
+1. Install extension
+2. Visit cyberskyline.com while logged in
+3. Click extension icon
+4. Export cookies for cyberskyline.com
+5. Format as: `cookie1=value1; cookie2=value2; ...`
+6. Save to `~/cyberskyline_cookies.txt`
+7. Update `COOKIE_FILE` path in `config.py`
 
 ## Safety Mechanism
 
@@ -287,8 +350,9 @@ When the NCL Team Game starts:
 - `update_sheet_template.py` - Core logic library
 
 ### Utilities (`utils/`)
+- `auto_setup.py` - **Automated setup** - detects browser, extracts cookies, creates config.py (cross-platform)
 - `setup_google_auth.py` - Google OAuth authentication setup
-- `extract_firefox_cookies.py` - Extract cyberskyline session cookies from Firefox
+- `extract_firefox_cookies.py` - Manual Firefox cookie extraction (Linux-only, use auto_setup.py instead)
 
 ### Legacy Scripts (Optional)
 - `update_all_sheets.py` - Alternative script to update all sheets
