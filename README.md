@@ -2,6 +2,8 @@
 
 Automated tools for updating the SANS NCL Team Answer Sheet from cyberskyline.com data.
 
+> **Note:** Built for a specific NCL team workflow. Documentation is functional but reflects organic development. Use as reference/inspiration rather than drop-in solution.
+
 ## Main Script
 
 ### Unified Updater
